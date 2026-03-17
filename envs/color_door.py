@@ -1,5 +1,5 @@
 from minigrid.core.world_object import Door
-from minigrid.utils.rendering import fill_coords, point_in_rect
+from minigrid.utils.rendering import fill_coords, point_in_rect, point_in_circle
 from minigrid.core.constants import COLORS
 
 
@@ -28,8 +28,16 @@ class ColorDoor(Door):
             door_color = COLORS["green"]
 
         if self.is_open:
-            # Open door → draw thinner rectangle
-            fill_coords(img, point_in_rect(0.3, 0.7, 0.3, 0.7), door_color)
-        else:
-            # Closed door
-            fill_coords(img, point_in_rect(0.1, 0.9, 0.1, 0.9), door_color)
+            # Render door frame and thinner rectangle for open door
+            fill_coords(img, point_in_rect(0.88, 1.00, 0.00, 1.00), door_color)  # Door frame
+            fill_coords(img, point_in_rect(0.92, 0.96, 0.04, 0.96), (0, 0, 0))  # Door handle
+            return
+        
+        # Render closed door
+        fill_coords(img, point_in_rect(0.00, 1.00, 0.00, 1.00), door_color)
+        fill_coords(img, point_in_rect(0.04, 0.96, 0.04, 0.96), (0, 0, 0))  # Outer frame
+        fill_coords(img, point_in_rect(0.08, 0.92, 0.08, 0.92), door_color)  # Inner frame
+        fill_coords(img, point_in_rect(0.12, 0.88, 0.12, 0.88), (0, 0, 0))  # Final outline for door
+
+        # Draw door handle (manillar circular)
+        fill_coords(img, point_in_circle(cx=0.75, cy=0.50, r=0.08), door_color)  # Door handle (circle)
