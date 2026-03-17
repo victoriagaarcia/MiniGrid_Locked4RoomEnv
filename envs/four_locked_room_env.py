@@ -147,7 +147,7 @@ class FourLockedRoomEnv(MiniGridEnv):
         locked_room.locked = True
 
         goal_pos = locked_room.rand_pos(self)
-        self.grid.set(*goal_pos, Goal())
+        self.grid.set(*goal_pos, Goal("yellow"))
 
         # =========================
         # 5. Assign colors + place doors
@@ -173,7 +173,8 @@ class FourLockedRoomEnv(MiniGridEnv):
                 break
 
         key_pos = key_room.rand_pos(self)
-        self.grid.set(*key_pos, Key(locked_room.color))
+        # self.grid.set(*key_pos, Key(locked_room.color))
+        self.grid.set(*key_pos, Key("red"))  # Key color doesn't affect logic, only visualization
 
         # =========================
         # 7. Place agent in hallway
