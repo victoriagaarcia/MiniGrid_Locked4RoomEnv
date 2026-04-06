@@ -31,13 +31,17 @@ class ColorDoor(Door):
             # Render door frame and thinner rectangle for open door
             fill_coords(img, point_in_rect(0.88, 1.00, 0.00, 1.00), door_color)  # Door frame
             fill_coords(img, point_in_rect(0.92, 0.96, 0.04, 0.96), (0, 0, 0))  # Door handle
-            return
         
-        # Render closed door
-        fill_coords(img, point_in_rect(0.00, 1.00, 0.00, 1.00), door_color)
-        fill_coords(img, point_in_rect(0.04, 0.96, 0.04, 0.96), (0, 0, 0))  # Outer frame
-        fill_coords(img, point_in_rect(0.08, 0.92, 0.08, 0.92), door_color)  # Inner frame
-        fill_coords(img, point_in_rect(0.12, 0.88, 0.12, 0.88), (0, 0, 0))  # Final outline for door
+        else:
+            # Render closed door
+            fill_coords(img, point_in_rect(0.00, 1.00, 0.00, 1.00), door_color)
+            fill_coords(img, point_in_rect(0.04, 0.96, 0.04, 0.96), (0, 0, 0))  # Outer frame
+            fill_coords(img, point_in_rect(0.08, 0.92, 0.08, 0.92), door_color)  # Inner frame
+            fill_coords(img, point_in_rect(0.12, 0.88, 0.12, 0.88), (0, 0, 0))  # Final outline for door
 
-        # Draw door handle (manillar circular)
-        fill_coords(img, point_in_circle(cx=0.75, cy=0.50, r=0.08), door_color)  # Door handle (circle)
+            # Draw door handle (manillar circular)
+            fill_coords(img, point_in_circle(cx=0.75, cy=0.50, r=0.08), door_color)  # Door handle (circle)
+    
+    # Definir función toggle
+    # def toggle(self, env, pos):
+    #     return
