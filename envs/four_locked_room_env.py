@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from minigrid.core.constants import COLOR_NAMES
 from minigrid.core.grid import Grid
 from minigrid.core.mission import MissionSpace
-from minigrid.core.world_object import Goal, Key, Wall # Door
+from minigrid.core.world_object import Goal, Key, Wall
 from minigrid.minigrid_env import MiniGridEnv
 
 from envs.color_door import ColorDoor as Door
@@ -20,6 +20,10 @@ class FourRoom:
     locked: bool = False
 
     def rand_pos(self, env: MiniGridEnv) -> tuple[int, int]:
+        """
+        Get a random position within the room (not including walls).
+        Useful for placing the key and goal.
+        """
         top_x, top_y = self.top
         size_x, size_y = self.size
         return env._rand_pos(
@@ -32,17 +36,23 @@ class FourRoom:
 
 class FourLockedRoomEnv(MiniGridEnv):
     """
-    Custom MiniGrid environment with 4 rooms instead of 6.
+    Custom MiniGrid environment with 4 rooms.
 
-    Layout:
-    - central vertical hallway
-    - 2 rooms on the left
-    - 2 rooms on the right
+    Layout
+    ------
+    Central vertical hallway flanked by 2 rooms on each side
+    (top-left, bottom-left, top-right, bottom-right).
 
-    Task:
-    - pick up the key
-    - unlock the locked room
-    - reach the goal
+    Task
+    ----
+    1. Find the key (same color as the locked door) somewhere in the open rooms.
+    2. Unlock the locked room (red door).
+    3. Reach the goal inside the locked room.
+
+    Visual conventions (via ColorDoor)
+    -----------------------------------
+    - Open/unlocked doors → GREEN
+    - Locked door         → RED
     """
 
     def __init__(self, size: int = 19, max_steps: int | None = None, **kwargs):
@@ -51,9 +61,15 @@ class FourLockedRoomEnv(MiniGridEnv):
         if max_steps is None:
             max_steps = 10 * size
 
+        # Mission space para entorno con colores de habitación variados
+        # mission_space = MissionSpace(
+        #     mission_func=self._gen_mission,
+        #     ordered_placeholders=[COLOR_NAMES, COLOR_NAMES],
+        # ) 
+
+        # Mission space sin colores (misión fija)
         mission_space = MissionSpace(
-            mission_func=self._gen_mission,
-            ordered_placeholders=[COLOR_NAMES] * 3,
+            mission_func=self._gen_mission
         )
 
         super().__init__(
@@ -64,130 +80,93 @@ class FourLockedRoomEnv(MiniGridEnv):
             **kwargs,
         )
 
+    # @staticmethod
+    # def _gen_mission(lockedroom_color: str, keyroom_color: str) -> str:
+        # Función para entorno con colores de habitación variados
+        # return (
+        #     f"get the {lockedroom_color} key from the {keyroom_color} room, "
+        #     f"unlock the red door and go to the goal"
+        # )
+
     @staticmethod
-    def _gen_mission(lockedroom_color: str, keyroom_color: str, door_color: str) -> str:
-        return (
-            f"get the {lockedroom_color} key from the {keyroom_color} room, "
-            f"unlock the {door_color} door and go to the goal"
-        )
+    def _gen_mission() -> str:
+        return "Find the red key in one of the green rooms, unlock the red door and reach the goal"
 
     def _gen_grid(self, width: int, height: int) -> None:
-        # Create empty grid
+        # Grid vacío
         self.grid = Grid(width, height)
 
-        # =========================
-        # 1. Outer walls
-        # =========================
-        for i in range(width):
+        # ── 1. Outer walls ────────────────────────────────────────────────────
+        for i in range(width): # Paredes horizontales (borde superior e inferior)
             self.grid.set(i, 0, Wall())
             self.grid.set(i, height - 1, Wall())
-
-        for j in range(height):
+        for j in range(height): # Paredes verticales (borde izquierdo y derecho)
             self.grid.set(0, j, Wall())
             self.grid.set(width - 1, j, Wall())
 
-        # =========================
-        # 2. Central vertical hallway
-        # =========================
-        left_hall_x = width // 2 - 2
-        right_hall_x = width // 2 + 2
+        # ── 2. Central vertical hallway (two columns) ─────────────────────────
+        #   left_hall_x  : right wall of left rooms  / left wall of hallway
+        #   right_hall_x : left wall of right rooms  / right wall of hallway
+        left_hall_x  = width  // 2 - 1
+        right_hall_x = width  // 2 + 1
 
-        for j in range(height):
-            self.grid.set(left_hall_x, j, Wall())
+        for j in range(height): # Paredes verticales del pasillo central
+            self.grid.set(left_hall_x,  j, Wall())
             self.grid.set(right_hall_x, j, Wall())
 
-        # =========================
-        # 3. Split vertically into 2 levels
-        #    => 4 rooms total
-        # =========================
+        # ── 3. Horizontal divider (splits each side into top / bottom room) ───
+        mid_y = height // 2
+
+        # Paredes horizontales del divisor (con hueco para puertas)
+        for i in range(1, left_hall_x): # left side
+            self.grid.set(i, mid_y, Wall())
+        for i in range(right_hall_x + 1, width - 1): # right side
+            self.grid.set(i, mid_y, Wall())
+
+        # ── 4. Define the 4 rooms ─────────────────────────────────────────────
+        #   Each room gets a door on the hallway wall, vertically centred.
         self.rooms: list[FourRoom] = []
 
-        split_rows = 2
-        room_span = height // split_rows
+        room_configs = [
+            # (top-left corner,            approx size,                     door column,   door row)
+            ((0,            0),            (left_hall_x  + 1, mid_y  + 1),  left_hall_x,   mid_y  // 2),
+            ((0,            mid_y),        (left_hall_x  + 1, height - mid_y), left_hall_x, mid_y + (height - mid_y) // 2),
+            ((right_hall_x, 0),            (width - right_hall_x, mid_y + 1),  right_hall_x, mid_y  // 2),
+            ((right_hall_x, mid_y),        (width - right_hall_x, height - mid_y), right_hall_x, mid_y + (height - mid_y) // 2),
+        ]
 
-        for n in range(split_rows):
-            y = n * room_span
-
-            # Horizontal walls separating upper/lower rooms
-            for i in range(0, left_hall_x):
-                self.grid.set(i, y, Wall())
-
-            for i in range(right_hall_x, width):
-                self.grid.set(i, y, Wall())
-
-            room_w = left_hall_x + 1
-            room_h = room_span + 1
-
-            # Put door roughly centered vertically in each room
-            door_y = y + room_span // 2
+        for (top, size, door_x, door_y) in room_configs:
+            # Asegurar que la posición de la puerta esté dentro de los límites del entorno
             door_y = max(1, min(height - 2, door_y))
-
-            # Left room
             self.rooms.append(
-                FourRoom(
-                    top=(0, y),
-                    size=(room_w, room_h),
-                    door_pos=(left_hall_x, door_y),
-                )
+                FourRoom(top=top, size=size, door_pos=(door_x, door_y))
             )
 
-            # Right room
-            self.rooms.append(
-                FourRoom(
-                    top=(right_hall_x, y),
-                    size=(room_w, room_h),
-                    door_pos=(right_hall_x, door_y),
-                )
-            )
-
-        # =========================
-        # 4. Choose locked room
-        # =========================
+        # ── 5. Choose locked room & place goal ────────────────────────────────
         locked_room = self._rand_elem(self.rooms)
         locked_room.locked = True
 
         goal_pos = locked_room.rand_pos(self)
-        self.grid.set(*goal_pos, Goal("yellow"))
+        self.grid.set(*goal_pos, Goal())
 
-        # =========================
-        # 5. Assign colors + place doors
-        # =========================
-        colors = set(COLOR_NAMES)
-
+        # ── 6. Assign colors + place doors ────────────────────────────────────
+        #   Locked room is red; all unlocked rooms are green.
         for room in self.rooms:
-            color = self._rand_elem(sorted(colors))
-            colors.remove(color)
-            room.color = color
+            room.color = "red" if room.locked else "green"
+            self.grid.set(*room.door_pos, Door(is_locked=room.locked))
 
-            if room.locked:
-                self.grid.set(*room.door_pos, Door(color, is_locked=True))
-            else:
-                self.grid.set(*room.door_pos, Door(color))
-
-        # =========================
-        # 6. Place key in another room
-        # =========================
-        while True:
-            key_room = self._rand_elem(self.rooms)
-            if key_room != locked_room:
-                break
-
+        # ── 7. Place key in a random *open* room ──────────────────────────────
+        open_rooms = [r for r in self.rooms if not r.locked]
+        key_room = self._rand_elem(open_rooms)
         key_pos = key_room.rand_pos(self)
-        # self.grid.set(*key_pos, Key(locked_room.color))
-        self.grid.set(*key_pos, Key("red"))  # Key color doesn't affect logic, only visualization
+        # Key color matches the locked room so the agent knows which door to open
+        self.grid.set(*key_pos, Key(locked_room.color)) # La llave siempre será roja
 
-        # =========================
-        # 7. Place agent in hallway
-        # =========================
-        self.agent_pos = self.place_agent(
-            top=(left_hall_x, 0),
-            size=(right_hall_x - left_hall_x, height),
+        # ── 8. Place agent in the hallway ─────────────────────────────────────
+        self.place_agent(
+            top=(left_hall_x, 1),
+            size=(right_hall_x - left_hall_x + 1, height - 2),
         )
 
-        # =========================
-        # 8. Mission
-        # =========================
-        self.mission = (
-            f"get the {locked_room.color} key from the {key_room.color} room, "
-            f"unlock the {locked_room.color} door and go to the goal"
-        )
+        # ── 9. Mission string ─────────────────────────────────────────────────
+        self.mission = self._gen_mission()
