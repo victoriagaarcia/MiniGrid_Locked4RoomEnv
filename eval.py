@@ -140,7 +140,8 @@ def evaluate(args: argparse.Namespace) -> None:
     print("[eval] Modelo cargado correctamente.")
 
     # Referencia al entorno sin wrappers para render y metadatos
-    raw_env: FourLockedRoomEnv = vec_env.envs[0].env.env.env  # desenvuelve wrappers
+    # raw_env: FourLockedRoomEnv = vec_env.envs[0].env.env.env  # desenvuelve wrappers
+    raw_env: FourLockedRoomEnv = vec_env.venv.envs[0].unwrapped
 
     # ── Bucle de episodios ────────────────────────────────────────────────
     for ep in range(1, args.episodes + 1):
