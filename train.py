@@ -22,6 +22,7 @@ Tensorboard
 import argparse
 import os
 from typing import Callable
+from pathlib import Path
 
 import gymnasium as gym
 import numpy as np
@@ -246,9 +247,10 @@ def make_env_fn(size: int = 19, seed: int = 0) -> Callable[[], gym.Env]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 CHECKPOINT_EVERY = 50_000   # cada cuántos timesteps guardar checkpoint
-MODEL_DIR = (os.path.join("runs", datetime.now().strftime("%b%d_%H_%M_%S"))).mkdir(parents=True, exist_ok=True)
+MODEL_DIR = Path("runs") / datetime.now().strftime("%b%d_%H_%M_%S")
+# MODEL_DIR.mkdir(parents=True, exist_ok=True)
 print(f"[train] Modelos y logs se guardarán en: {MODEL_DIR}")
-TB_DIR = os.path.join(MODEL_DIR, "tensorboard")
+TB_DIR = os.path.join(str(MODEL_DIR), "tensorboard")
 
 def train(args: argparse.Namespace) -> None:
     # os.makedirs("logs/tensorboard", exist_ok=True)
