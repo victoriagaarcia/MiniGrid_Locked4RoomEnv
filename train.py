@@ -246,7 +246,8 @@ def make_env_fn(size: int = 19, seed: int = 0) -> Callable[[], gym.Env]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 CHECKPOINT_EVERY = 50_000   # cada cuántos timesteps guardar checkpoint
-MODEL_DIR = os.path.join("runs", datetime.now().strftime("%b%d_%H_%M_%S"))
+MODEL_DIR = (os.path.join("runs", datetime.now().strftime("%b%d_%H_%M_%S"))).mkdir(parents=True, exist_ok=True)
+print(f"[train] Modelos y logs se guardarán en: {MODEL_DIR}")
 TB_DIR = os.path.join(MODEL_DIR, "tensorboard")
 
 def train(args: argparse.Namespace) -> None:
