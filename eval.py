@@ -27,6 +27,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 
 from envs.four_locked_room_env import FourLockedRoomEnv
 from train_old import RGBFlatWrapper, ShapedRewardWrapper   # reutiliza los wrappers
+from gym.wrappers import RecordVideo
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -34,12 +35,21 @@ from train_old import RGBFlatWrapper, ShapedRewardWrapper   # reutiliza los wrap
 # ═══════════════════════════════════════════════════════════════════════════════
 
 TILE_SIZE = 32   # resolución de cada celda en el vídeo (px)
+MODEL_DATE = "Mar29_09_36_01"  # ajusta esto
+LOAD_STEP =  500_000            # ajusta esto
+MODEL_PATH = f"runs/{MODEL_DATE}/ppo_fourlocked_step{LOAD_STEP}.pt"
 
+# VIDEO_DIR = f"runs/{MODEL_DATE}/videos_eval"
+VIDEO_DIR = "eval_videos"
+VIDEO_PREFIX = f"ppo_eval_step{LOAD_STEP}"
+
+os.makedirs(VIDEO_DIR, exist_ok=True)
 
 def make_eval_env(size: int) -> DummyVecEnv:
     """Crea un único entorno envuelto, listo para evaluación."""
     def _init():
         env = FourLockedRoomEnv(size=size, render_mode="rgb_array", tile_size=TILE_SIZE)
+        env = RecordVideo(env, video_folder=VIDEO_DIR, episode_trigger=lambda episode: True, name_prefix=VIDEO_PREFIX)
         env = ShapedRewardWrapper(env)
         env = RGBFlatWrapper(env)
         return env
@@ -122,13 +132,14 @@ def rgb_to_bgr(frame: np.ndarray) -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def evaluate(args: argparse.Namespace) -> None:
-    os.makedirs(args.out_dir, exist_ok=True)
+    # os.makedirs(args.out_dir, exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[eval] Device: {device}")
 
     # ── Cargar modelo ─────────────────────────────────────────────────────
-    model_path = args.model
+    # model_path = args.model
+    model_path = "models/ppo_fourlocked_final.zip"  # ruta fija para este ejemplo
     if not model_path.endswith(".zip"):
         model_path += ".zip"
     if not os.path.exists(model_path):
