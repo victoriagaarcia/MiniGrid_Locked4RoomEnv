@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 logs/checkpoints/
 *.pyc
+models/
+runs/
+eval_videos/
+logs/
