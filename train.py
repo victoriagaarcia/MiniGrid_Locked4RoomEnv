@@ -541,6 +541,9 @@ def train(args: argparse.Namespace) -> None:
                 "last_success_rate": info_logger.last_success_rate,
                 "final_model_path": str(final_model_path) if final_model_path.exists() else "",
                 "best_model_path": str(best_model_path) if best_model_path.exists() else "",
+                "last_key_rate": info_logger.last_key_rate,
+                "last_door_rate": info_logger.last_door_rate,
+                "steps_completed": steps_done,
                 "notes": error_notes,
             },
         )

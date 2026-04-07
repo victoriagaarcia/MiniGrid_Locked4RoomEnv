@@ -36,6 +36,10 @@ EXCEL_HEADERS = [
     "last_success_rate",
     "final_model_path",
     "best_model_path",
+    "last_key_rate",
+    "last_door_rate",
+    "last_eval_mean_reward",
+    "steps_completed",
     "notes",
 ]
 
