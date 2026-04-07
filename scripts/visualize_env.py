@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from envs.four_locked_room_env import FourLockedRoomEnv
+from envs.four_locked_room_env_old import FourLockedRoomEnv
 from minigrid.manual_control import ManualControl
 
 
