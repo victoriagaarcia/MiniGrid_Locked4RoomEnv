@@ -26,6 +26,7 @@ from typing import Callable
 import gymnasium as gym
 import numpy as np
 import torch
+from datetime import datetime
 from gymnasium import spaces
 from gymnasium.wrappers import TransformObservation
 from stable_baselines3 import PPO
@@ -245,11 +246,13 @@ def make_env_fn(size: int = 19, seed: int = 0) -> Callable[[], gym.Env]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 CHECKPOINT_EVERY = 50_000   # cada cuántos timesteps guardar checkpoint
+MODEL_DIR = os.path.join("runs", datetime.now().strftime("%b%d_%H_%M_%S"))
+TB_DIR = os.path.join(MODEL_DIR, "tensorboard")
 
 def train(args: argparse.Namespace) -> None:
-    os.makedirs("logs/tensorboard", exist_ok=True)
-    os.makedirs("logs/checkpoints", exist_ok=True)
-    os.makedirs("models", exist_ok=True)
+    # os.makedirs("logs/tensorboard", exist_ok=True)
+    # os.makedirs("logs/checkpoints", exist_ok=True)
+    # os.makedirs("models", exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[train] Usando device: {device}")
@@ -293,7 +296,7 @@ def train(args: argparse.Namespace) -> None:
         vf_coef         = 0.5,       # coeficiente del value loss
         max_grad_norm   = 0.5,
         # ── Logging ───────────────────────────────────────────────────
-        tensorboard_log = "logs/tensorboard",
+        tensorboard_log = TB_DIR,
         verbose         = 1,
         policy_kwargs   = policy_kwargs,
     )
@@ -308,8 +311,8 @@ def train(args: argparse.Namespace) -> None:
         callbacks.append(
             EvalCallback(
                 eval_env,
-                best_model_save_path = "models/",
-                log_path             = "logs/eval",
+                best_model_save_path = MODEL_DIR,
+                log_path             = MODEL_DIR,
                 eval_freq            = max(100_000 // n_envs, 1),
                 n_eval_episodes      = 20,
                 deterministic        = True,
@@ -333,13 +336,13 @@ def train(args: argparse.Namespace) -> None:
 
             # Guardar checkpoint en formato .pt
             ckpt_path = os.path.join(
-                "logs/checkpoints", f"ppo_fourlocked_step{steps_done}.pt"
+                MODEL_DIR, f"ppo_fourlocked_step{steps_done}.pt"
             )
             model.save(ckpt_path)
             print(f"[Checkpoint] Guardado: {ckpt_path}")
 
         # ── Guardar modelo final ───────────────────────────────────────
-        final_path = "models/ppo_fourlocked_final.pt"
+        final_path = os.path.join(MODEL_DIR, "ppo_fourlocked_final.pt")
         model.save(final_path)
         print(f"[train] Modelo final guardado en {final_path}")
 
