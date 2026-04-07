@@ -26,7 +26,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 
 from envs.four_locked_room_env import FourLockedRoomEnv
-from train import RGBFlatWrapper, ShapedRewardWrapper   # reutiliza los wrappers
+from train_old import RGBFlatWrapper, ShapedRewardWrapper   # reutiliza los wrappers
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

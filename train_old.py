@@ -26,13 +26,13 @@ from typing import Callable
 import gymnasium as gym
 import numpy as np
 import torch
-from datetime import datetime
 from gymnasium import spaces
 from gymnasium.wrappers import TransformObservation
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import (
     BaseCallback,
     CallbackList,
+    CheckpointCallback,
     EvalCallback,
 )
 from stable_baselines3.common.env_util import make_vec_env
@@ -245,15 +245,10 @@ def make_env_fn(size: int = 19, seed: int = 0) -> Callable[[], gym.Env]:
 # 6.  ENTRENAMIENTO PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
-CHECKPOINT_EVERY = 50_000   # cada cuántos timesteps guardar checkpoint
-MODEL_DIR = (os.path.join("runs", datetime.now().strftime("%b%d_%H_%M_%S"))).mkdir(parents=True, exist_ok=True)
-print(f"[train] Modelos y logs se guardarán en: {MODEL_DIR}")
-TB_DIR = os.path.join(MODEL_DIR, "tensorboard")
-
 def train(args: argparse.Namespace) -> None:
-    # os.makedirs("logs/tensorboard", exist_ok=True)
-    # os.makedirs("logs/checkpoints", exist_ok=True)
-    # os.makedirs("models", exist_ok=True)
+    os.makedirs("logs/tensorboard", exist_ok=True)
+    os.makedirs("logs/checkpoints", exist_ok=True)
+    os.makedirs("models", exist_ok=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[train] Usando device: {device}")
@@ -297,7 +292,7 @@ def train(args: argparse.Namespace) -> None:
         vf_coef         = 0.5,       # coeficiente del value loss
         max_grad_norm   = 0.5,
         # ── Logging ───────────────────────────────────────────────────
-        tensorboard_log = TB_DIR,
+        tensorboard_log = "logs/tensorboard",
         verbose         = 1,
         policy_kwargs   = policy_kwargs,
     )
@@ -305,15 +300,23 @@ def train(args: argparse.Namespace) -> None:
     print(f"[train] Parámetros del modelo: "
           f"{sum(p.numel() for p in model.policy.parameters()):,}")
 
-    # ── Callbacks (solo InfoLogger y, opcionalmente, EvalCallback) ────────
-    callbacks = [InfoLoggerCallback()]
+    # ── Callbacks ─────────────────────────────────────────────────────────
+    callbacks = [
+        CheckpointCallback(
+            save_freq   = max(50_000 // n_envs, 1),
+            save_path   = "logs/checkpoints",
+            name_prefix = "ppo_fourlocked",
+            verbose     = 1,
+        ),
+        InfoLoggerCallback(),
+    ]
 
     if eval_env is not None:
         callbacks.append(
             EvalCallback(
                 eval_env,
-                best_model_save_path = MODEL_DIR,
-                log_path             = MODEL_DIR,
+                best_model_save_path = "models/",
+                log_path             = "logs/eval",
                 eval_freq            = max(100_000 // n_envs, 1),
                 n_eval_episodes      = 20,
                 deterministic        = True,
@@ -321,36 +324,21 @@ def train(args: argparse.Namespace) -> None:
             )
         )
 
-    # ── Bucle de entrenamiento con checkpoints manuales en .pt ────────────
-    steps_done = 0
-    try:
-        while steps_done < args.timesteps:
-            chunk = min(CHECKPOINT_EVERY, args.timesteps - steps_done)
-            model.learn(
-                total_timesteps     = chunk,
-                callback            = CallbackList(callbacks),
-                tb_log_name         = "ppo_fourlocked",
-                reset_num_timesteps = (steps_done == 0),  # solo True en el primer chunk
-                progress_bar        = True,
-            )
-            steps_done += chunk
+    # ── Entrenar ──────────────────────────────────────────────────────────
+    model.learn(
+        total_timesteps  = args.timesteps,
+        callback         = CallbackList(callbacks),
+        tb_log_name      = "ppo_fourlocked",
+        reset_num_timesteps = True,
+    )
 
-            # Guardar checkpoint en formato .pt
-            ckpt_path = os.path.join(
-                MODEL_DIR, f"ppo_fourlocked_step{steps_done}.pt"
-            )
-            model.save(ckpt_path)
-            print(f"[Checkpoint] Guardado: {ckpt_path}")
+    # ── Guardar modelo final ───────────────────────────────────────────────
+    model.save("models/ppo_fourlocked_final")
+    print("[train] Modelo guardado en models/ppo_fourlocked_final.pt")
 
-        # ── Guardar modelo final ───────────────────────────────────────
-        final_path = os.path.join(MODEL_DIR, "ppo_fourlocked_final.pt")
-        model.save(final_path)
-        print(f"[train] Modelo final guardado en {final_path}")
-
-    finally:
-        vec_env.close()
-        if eval_env is not None:
-            eval_env.close()
+    vec_env.close()
+    if eval_env is not None:
+        eval_env.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
