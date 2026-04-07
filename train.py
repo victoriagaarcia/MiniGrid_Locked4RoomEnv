@@ -298,7 +298,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--config",
         type=str,
-        default="configs/ppo_fourlocked.yaml",
+        default="ppo_fourlocked.yaml",
         help="Ruta al archivo YAML de configuración",
     )
     return p.parse_args()
