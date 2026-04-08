@@ -121,15 +121,6 @@ def make_single_eval_env(
     if full_obs:
         env = FullyObsWrapper(env)
 
-    if record_video_folder is not None:
-        env = gym.wrappers.RecordVideo(
-            env,
-            video_folder=record_video_folder,
-            episode_trigger=lambda ep: True,
-            name_prefix=video_prefix,
-        )
-        print(f"[Video] Recording enabled -> {record_video_folder}")
-
     env = ShapedRewardWrapper(env)
     env.KEY_BONUS = key_bonus
     env.DOOR_BONUS = door_bonus
@@ -148,6 +139,15 @@ def make_single_eval_env(
         env.observation_space.seed(seed)
     except Exception:
         pass
+
+    if record_video_folder is not None:
+        env = gym.wrappers.RecordVideo(
+            env,
+            video_folder=record_video_folder,
+            episode_trigger=lambda ep: True,
+            name_prefix=video_prefix,
+        )
+        print(f"[Video] Recording enabled -> {record_video_folder}")
 
     return env
 
