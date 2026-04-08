@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--checkpoint",
         type=int,
-        default=None,
+        default=6500000,
         help="Si se indica, carga runs/<run_dir>/ppo_fourlocked_step<checkpoint>.pt",
     )
     p.add_argument(
