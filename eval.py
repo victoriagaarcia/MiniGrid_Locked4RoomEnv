@@ -17,12 +17,13 @@ ALGO = "ppo"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # MODEL_PATH = "models/ppo_fourlocked_final.zip"
-MODEL_DATE = "Mar29_09_36_01"  # ajusta esto
+MODEL_DATE = "Apr07_23_34_33"  # ajusta esto
 LOAD_STEP =  500_000            # ajusta esto
-MODEL_PATH = f"runs/{MODEL_DATE}/ppo_fourlocked_step{LOAD_STEP}.pt"
+# MODEL_PATH = f"runs/{MODEL_DATE}/ppo_fourlocked_step{LOAD_STEP}.pt"
 # VIDEO_DIR = "eval_videos"
+MODEL_PATH = f"runs/{MODEL_DATE}/ppo_fourlocked_final.pt"
 VIDEO_DIR = f"runs/{MODEL_DATE}/videos_eval"
-VIDEO_PREFIX = f"ppo_eval_step{LOAD_STEP}"
+# VIDEO_PREFIX = f"ppo_eval_step{LOAD_STEP}"
 VIDEO_PREFIX = "ppo_eval"
 
 N_EPISODES = 5
