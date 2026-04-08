@@ -2,7 +2,7 @@ experiment:
   name: ppo_fourlocked
   seed: 42
   total_timesteps: 15000000
-  checkpoint_every: 50000
+  checkpoint_every: 100000
   eval: true
   n_eval_episodes: 20
   eval_freq: 100000
@@ -27,7 +27,7 @@ model:
 
 ppo:
   learning_rate: 0.00025
-  n_steps: 512
+  n_steps: 1024
   batch_size: 256
   n_epochs: 4
   gamma: 0.99
