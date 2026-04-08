@@ -107,6 +107,8 @@ class ShapedRewardWrapper(gym.Wrapper):
 
     KEY_BONUS = 0.30
     DOOR_BONUS = 0.50
+    GOAL_BONUS = 1.0
+    STEP_PENALTY = 0.001
 
     def __init__(self, env: gym.Env):
         super().__init__(env)
@@ -119,10 +121,9 @@ class ShapedRewardWrapper(gym.Wrapper):
         return self.env.reset(**kwargs)
 
     def step(self, action):
-        obs, reward, terminated, truncated, info = self.env.step(action)
+        obs, _, terminated, truncated, info = self.env.step(action)
 
-        base_reward = float(reward)
-        shaped_reward = base_reward
+        shaped_reward = 0.0
 
         got_key_now = False
         if not self._key_picked:
@@ -143,12 +144,18 @@ class ShapedRewardWrapper(gym.Wrapper):
                         self._door_opened = True
                         opened_door_now = True
                         break
+        
+        is_success = bool(terminated and self._door_opened)
+        
+        if is_success:
+            shaped_reward += self.GOAL_BONUS
+        elif not terminated and not truncated:
+            shaped_reward -= self.STEP_PENALTY
 
-        info["base_reward"] = base_reward
         info["shaped_reward"] = float(shaped_reward)
         info["bonus_key"] = got_key_now
         info["bonus_door"] = opened_door_now
-        info["is_success"] = bool(terminated and base_reward > 0.0)
+        info["is_success"] = is_success
         info["episode_got_key"] = self._key_picked
         info["episode_opened_door"] = self._door_opened
 
@@ -255,6 +262,8 @@ def make_env_fn(
     full_obs: bool = True,
     key_bonus: float = 0.30,
     door_bonus: float = 0.50,
+    goal_bonus: float = 1.0,
+    step_penalty: float = 0.001,
 ) -> Callable[[], gym.Env]:
     """
     Devuelve una función que crea y envuelve el entorno.
@@ -269,6 +278,8 @@ def make_env_fn(
         env = ShapedRewardWrapper(env)
         env.KEY_BONUS = key_bonus
         env.DOOR_BONUS = door_bonus
+        env.GOAL_BONUS = goal_bonus
+        env.STEP_PENALTY = step_penalty
 
         env = RGBFlatWrapper(env)
         env = Monitor(env)
@@ -326,6 +337,8 @@ def train(args: argparse.Namespace) -> None:
 
     key_bonus = float(cfg.get("reward", "key_bonus", default=0.30))
     door_bonus = float(cfg.get("reward", "door_bonus", default=0.50))
+    goal_bonus = float(cfg.get("reward", "goal_bonus", default=1.0))
+    step_penalty = float(cfg.get("reward", "step_penalty", default=0.001))
 
     # ── Seeds globales ───────────────────────────────────────────────────────
     set_global_seeds(seed)
@@ -369,6 +382,8 @@ def train(args: argparse.Namespace) -> None:
                 full_obs=full_obs,
                 key_bonus=key_bonus,
                 door_bonus=door_bonus,
+                goal_bonus=goal_bonus,
+                step_penalty=step_penalty,
             )
             for i in range(n_envs)
         ]
