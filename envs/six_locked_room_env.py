@@ -20,6 +20,10 @@ class SixRoom:
     locked: bool = False
 
     def rand_pos(self, env: MiniGridEnv) -> tuple[int, int]:
+        """
+        Get a random position within the room (not including walls).
+        Useful for placing the key and goal.
+        """
         top_x, top_y = self.top
         size_x, size_y = self.size
         return env._rand_pos(
@@ -32,33 +36,31 @@ class SixRoom:
 
 class SixLockedRoomEnv(MiniGridEnv):
     """
-    Custom MiniGrid environment with 6 rooms, mirroring the layout of
-    the original MiniGrid LockedRoom environment.
+    Custom MiniGrid environment with 6 rooms.
 
-    Layout:
-    - Central vertical hallway (2 cells wide)
-    - 3 rooms on the left  (3 rows × 1 column)
-    - 3 rooms on the right (3 rows × 1 column)
-    => 6 rooms total
+    Layout
+    ------
+    Central vertical hallway flanked by 3 rooms on each side
+    (top, middle, bottom — left and right).
 
-    Visual layout (H = hallway, L = left room, R = right room):
-        +---+--+---+
-        | L |H | R |   row 0
-        +---+--+---+
-        | L |H | R |   row 1
-        +---+--+---+
-        | L |H | R |   row 2
-        +---+--+---+
+        +--+--+--+
+        |L |  |R |   row 0
+        +--+H +--+
+        |L |  |R |   row 1
+        +--+H +--+
+        |L |  |R |   row 2
+        +--+--+--+
 
-    ColorDoor logic (same as FourLockedRoomEnv):
-        - Locked door  -> rendered RED
-        - Unlocked door -> rendered GREEN
-        - Key is always red (visualization only; logic is color-agnostic)
+    Task
+    ----
+    1. Find the red key somewhere in one of the open (green) rooms.
+    2. Unlock the locked room (red door).
+    3. Reach the goal inside the locked room.
 
-    Task:
-        - Pick up the red key from one of the unlocked rooms
-        - Unlock the locked room's door (red door)
-        - Reach the goal inside the locked room
+    Visual conventions (via ColorDoor)
+    -----------------------------------
+    - Open/unlocked doors → GREEN
+    - Locked door         → RED
     """
 
     def __init__(self, size: int = 19, max_steps: int | None = None, **kwargs):
@@ -68,8 +70,7 @@ class SixLockedRoomEnv(MiniGridEnv):
             max_steps = 10 * size
 
         mission_space = MissionSpace(
-            mission_func=self._gen_mission,
-            ordered_placeholders=[COLOR_NAMES] * 3,
+            mission_func=self._gen_mission
         )
 
         super().__init__(
@@ -81,11 +82,8 @@ class SixLockedRoomEnv(MiniGridEnv):
         )
 
     @staticmethod
-    def _gen_mission(lockedroom_color: str, keyroom_color: str, door_color: str) -> str:
-        return (
-            f"get the {lockedroom_color} key from the {keyroom_color} room, "
-            f"unlock the {door_color} door and go to the goal"
-        )
+    def _gen_mission() -> str:
+        return "Find the red key in one of the green rooms, unlock the red door and reach the goal"
 
     def _gen_grid(self, width: int, height: int) -> None:
         # Create empty grid
@@ -155,55 +153,31 @@ class SixLockedRoomEnv(MiniGridEnv):
                 )
             )
 
-        # =========================
-        # 4. Choose locked room randomly
-        # =========================
+        # ── 5. Choose locked room & place goal ────────────────────────────────
         locked_room = self._rand_elem(self.rooms)
         locked_room.locked = True
 
         goal_pos = locked_room.rand_pos(self)
-        self.grid.set(*goal_pos, Goal("yellow"))
+        self.grid.set(*goal_pos, Goal())
 
-        # =========================
-        # 5. Assign unique colors + place ColorDoors
-        #    Locked door  -> ColorDoor rendered RED  (is_locked=True)
-        #    Unlocked door -> ColorDoor rendered GREEN (is_locked=False)
-        # =========================
-        colors = set(COLOR_NAMES)
-
+        # ── 6. Assign colors + place doors ────────────────────────────────────
+        #   Locked room → red door; all unlocked rooms → green door.
+        #   ColorDoor handles the actual rendering color based on is_locked.
         for room in self.rooms:
-            color = self._rand_elem(sorted(colors))
-            colors.remove(color)
-            room.color = color
+            room.color = "red" if room.locked else "green"
+            self.grid.set(*room.door_pos, Door(is_locked=room.locked))
 
-            if room.locked:
-                self.grid.set(*room.door_pos, Door(color, is_locked=True))
-            else:
-                self.grid.set(*room.door_pos, Door(color))
-
-        # =========================
-        # 6. Place red key in a random unlocked room
-        # =========================
-        while True:
-            key_room = self._rand_elem(self.rooms)
-            if key_room != locked_room:
-                break
-
+        # ── 7. Place key in a random *open* room ──────────────────────────────
+        open_rooms = [r for r in self.rooms if not r.locked]
+        key_room = self._rand_elem(open_rooms)
         key_pos = key_room.rand_pos(self)
-        self.grid.set(*key_pos, Key("red"))  # Red key — color is visual only
+        self.grid.set(*key_pos, Key(locked_room.color))  # La llave siempre será roja
 
-        # =========================
-        # 7. Place agent in the central hallway
-        # =========================
-        self.agent_pos = self.place_agent(
-            top=(left_hall_x, 0),
-            size=(right_hall_x - left_hall_x, height),
+        # ── 8. Place agent in the hallway ─────────────────────────────────────
+        self.place_agent(
+            top=(left_hall_x, 1),
+            size=(right_hall_x - left_hall_x + 1, height - 2),
         )
 
-        # =========================
-        # 8. Mission string
-        # =========================
-        self.mission = (
-            f"get the {locked_room.color} key from the {key_room.color} room, "
-            f"unlock the {locked_room.color} door and go to the goal"
-        )
+        # ── 9. Mission string ─────────────────────────────────────────────────
+        self.mission = self._gen_mission()
