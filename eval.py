@@ -152,6 +152,7 @@ def make_single_eval_env(
             video_folder=record_video_folder,
             episode_trigger=episode_trigger,
             name_prefix=video_prefix,
+            fps=8,
         )
         print(f"[Video] Recording enabled -> {record_video_folder}")
 
