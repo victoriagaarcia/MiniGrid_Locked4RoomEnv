@@ -76,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--video_prefix",
         type=str,
-        default="ppo_eval",
+        default=f"ppo_eval",
         help="Prefijo del nombre de los vídeos",
     )
     p.add_argument(
@@ -111,6 +111,7 @@ def make_single_eval_env(
     tile_size: int,
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_eval",
+    max_videos: int | None = None,
 ) -> gym.Env:
     env = FourLockedRoomEnv(
         size=size,
@@ -141,10 +142,15 @@ def make_single_eval_env(
         pass
 
     if record_video_folder is not None:
+        if max_videos is None:
+            episode_trigger = lambda ep: True
+        else:
+            episode_trigger = lambda ep: ep < max_videos
+
         env = gym.wrappers.RecordVideo(
             env,
             video_folder=record_video_folder,
-            episode_trigger=lambda ep: True,
+            episode_trigger=episode_trigger,
             name_prefix=video_prefix,
         )
         print(f"[Video] Recording enabled -> {record_video_folder}")
@@ -164,6 +170,7 @@ def make_vec_eval_env(
     tile_size: int,
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_eval",
+    max_videos: int | None = None,
 ):
     def _init():
         return make_single_eval_env(
@@ -177,6 +184,7 @@ def make_vec_eval_env(
             tile_size=tile_size,
             record_video_folder=record_video_folder,
             video_prefix=video_prefix,
+            max_videos=max_videos,
         )
 
     env = DummyVecEnv([_init])
@@ -255,6 +263,7 @@ def main() -> None:
         tile_size=args.tile_size,
         record_video_folder=video_dir,
         video_prefix=args.video_prefix,
+        max_videos=args.episodes
     )
 
     model = PPO.load(
@@ -270,10 +279,10 @@ def main() -> None:
     door_hits = []
 
     try:
-        for ep in range(args.episodes):
-            obs = vec_env.reset()
-            done = False
+        obs = vec_env.reset()
 
+        for ep in range(args.episodes):
+            done = False
             print(f"\n[Episode {ep + 1}] Starting...")
 
             while not done:
