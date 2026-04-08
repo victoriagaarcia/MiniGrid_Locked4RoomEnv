@@ -401,6 +401,8 @@ def train(args: argparse.Namespace) -> None:
                     full_obs=full_obs,
                     key_bonus=key_bonus,
                     door_bonus=door_bonus,
+                    goal_bonus=goal_bonus,
+                    step_penalty=step_penalty,
                 )
             ]
         )
