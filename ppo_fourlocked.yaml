@@ -2,7 +2,7 @@ experiment:
   name: ppo_fourlocked
   seed: 42
   total_timesteps: 15000000
-  checkpoint_every: 50000
+  checkpoint_every: 100000
   eval: true
   n_eval_episodes: 20
   eval_freq: 100000
