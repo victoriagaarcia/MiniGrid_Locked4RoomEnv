@@ -27,7 +27,7 @@ import numpy as np
 import torch
 
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
+from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage, VecFrameStack
 from stable_baselines3.common.monitor import Monitor
 
 from minigrid.wrappers import FullyObsWrapper
@@ -169,6 +169,7 @@ def make_vec_eval_env(
     goal_bonus: float,
     step_penalty: float,
     tile_size: int,
+    frame_stack: int = 1,
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_eval",
     max_videos: int | None = None,
@@ -190,6 +191,10 @@ def make_vec_eval_env(
 
     env = DummyVecEnv([_init])
     env = VecTransposeImage(env)
+
+    if frame_stack > 1:
+        env = VecFrameStack(env, n_stack=frame_stack, channels_order="first")
+
     return env
 
 
@@ -230,6 +235,7 @@ def main() -> None:
     size = int(cfg.get("env", "size", default=19))
     full_obs = bool(cfg.get("env", "full_obs", default=True))
     seed = int(cfg.get("experiment", "seed", default=42))
+    frame_stack = int(cfg.get("env", "frame_stack", default=1))
 
     key_bonus = float(cfg.get("reward", "key_bonus", default=0.30))
     door_bonus = float(cfg.get("reward", "door_bonus", default=0.50))
@@ -262,9 +268,10 @@ def main() -> None:
         goal_bonus=goal_bonus,
         step_penalty=step_penalty,
         tile_size=args.tile_size,
+        frame_stack=frame_stack,
         record_video_folder=video_dir,
         video_prefix=args.video_prefix,
-        max_videos=args.episodes
+        max_videos=args.episodes,
     )
 
     model = PPO.load(

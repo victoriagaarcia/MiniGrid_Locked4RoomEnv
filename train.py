@@ -35,7 +35,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage, VecFrameStack
 
 from minigrid.wrappers import RGBImgObsWrapper, ImgObsWrapper, FullyObsWrapper
 
@@ -334,6 +334,7 @@ def train(args: argparse.Namespace) -> None:
     size = int(cfg.get("env", "size", default=19))
     full_obs = bool(cfg.get("env", "full_obs", default=True))
     n_envs = int(cfg.get("env", "n_envs", default=8))
+    frame_stack = int(cfg.get("env", "frame_stack", default=1))
 
     key_bonus = float(cfg.get("reward", "key_bonus", default=0.30))
     door_bonus = float(cfg.get("reward", "door_bonus", default=0.50))
@@ -389,6 +390,9 @@ def train(args: argparse.Namespace) -> None:
         ]
     )
     vec_env = VecTransposeImage(vec_env)
+    
+    if frame_stack > 1:
+        vec_env = VecFrameStack(vec_env, n_stack=frame_stack, channels_order="first")
 
     # ── Entorno de evaluación ────────────────────────────────────────────────
     eval_env = None
@@ -407,7 +411,8 @@ def train(args: argparse.Namespace) -> None:
             ]
         )
         eval_env = VecTransposeImage(eval_env)
-
+        if frame_stack > 1:
+            eval_env = VecFrameStack(eval_env, n_stack=frame_stack, channels_order="first")
     # ── Policy kwargs ────────────────────────────────────────────────────────
     features_dim = int(cfg.get("model", "features_dim", default=512))
     pi_layers = cfg.get("model", "pi_layers", default=[256, 256])

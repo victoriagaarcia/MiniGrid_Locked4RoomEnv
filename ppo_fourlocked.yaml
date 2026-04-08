@@ -12,6 +12,7 @@ env:
   full_obs: false
   n_envs: 8
   render_mode: rgb_array
+  frame_stack: 4
 
 reward:
   key_bonus: 0.30
