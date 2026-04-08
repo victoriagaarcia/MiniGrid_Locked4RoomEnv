@@ -27,7 +27,7 @@ model:
 
 ppo:
   learning_rate: 0.00025
-  n_steps: 512
+  n_steps: 1024
   batch_size: 256
   n_epochs: 4
   gamma: 0.99
