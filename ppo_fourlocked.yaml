@@ -1,5 +1,5 @@
 experiment:
-  name: ppo_partialobs_bigencoder
+  name: ppo_partialobs_fov9
   seed: 42
   total_timesteps: 20000000
   checkpoint_every: 500000
@@ -13,7 +13,7 @@ env:
   n_envs: 8
   render_mode: rgb_array
   # frame_stack: 4
-  agent_view_size: 7      # Tamaño del FOV en tiles (7 = default MiniGrid)
+  agent_view_size: 9      # Tamaño del FOV en tiles (7 = default MiniGrid)
 
 reward:
   key_bonus: 0.30
