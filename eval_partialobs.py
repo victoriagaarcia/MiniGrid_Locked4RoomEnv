@@ -337,7 +337,7 @@ def main() -> None:
                     )
 
                     # Tras terminar episodio, reseteamos el env y el flag de inicio
-                    obs = vec_env.reset()
+                    # obs = vec_env.reset()
                     episode_starts = np.ones((vec_env.num_envs,), dtype=bool)
                     lstm_states = None
 
