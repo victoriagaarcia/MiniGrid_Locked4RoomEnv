@@ -1,5 +1,5 @@
 experiment:
-  name: ppo_partialobs_stable
+  name: ppo_partialobs_bigencoder
   seed: 42
   total_timesteps: 20000000
   checkpoint_every: 500000
@@ -29,7 +29,7 @@ reward:
 
 model:
   policy: CnnLstmPolicy   # Para que el config sea descriptivo
-  features_dim: 256
+  features_dim: 512
   pi_layers: [128, 128]
   vf_layers: [128, 128]
   lstm_hidden_size: 256   # Tama�o del estado oculto del LSTM
