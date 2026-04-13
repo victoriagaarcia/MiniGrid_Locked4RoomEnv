@@ -1,7 +1,7 @@
 experiment:
-  name: ppo_fourlocked
+  name: ppo_partialobs_stable
   seed: 42
-  total_timesteps: 12000000
+  total_timesteps: 20000000
   checkpoint_every: 500000
   eval: true
   n_eval_episodes: 20
@@ -9,7 +9,7 @@ experiment:
 
 env:
   size: 19
-  # full_obs: false
+  full_obs: false
   n_envs: 8
   render_mode: rgb_array
   # frame_stack: 4
@@ -35,15 +35,15 @@ model:
   lstm_hidden_size: 256   # Tama�o del estado oculto del LSTM
 
 ppo:
-  learning_rate: 0.00025
-  n_steps: 1024
-  batch_size: 256
-  n_epochs: 4
+  learning_rate: 0.0001
+  n_steps: 512
+  batch_size: 128
+  n_epochs: 3
   gamma: 0.99
   gae_lambda: 0.95
-  clip_range: 0.2
-  ent_coef: 0.05
-  vf_coef: 0.5
+  clip_range: 0.1
+  ent_coef: 0.01
+  vf_coef: 1.0
   max_grad_norm: 0.5
 
 logging:
