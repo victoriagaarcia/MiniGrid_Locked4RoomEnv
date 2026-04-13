@@ -1,18 +1,19 @@
 experiment:
   name: ppo_fourlocked
   seed: 42
-  total_timesteps: 20000000
-  checkpoint_every: 100000
+  total_timesteps: 12000000
+  checkpoint_every: 500000
   eval: true
   n_eval_episodes: 20
-  eval_freq: 100000
+  eval_freq: 200000
 
 env:
   size: 19
-  full_obs: false
+  # full_obs: false
   n_envs: 8
   render_mode: rgb_array
-  frame_stack: 4
+  # frame_stack: 4
+  agent_view_size: 7      # Tamaño del FOV en tiles (7 = default MiniGrid)
 
 reward:
   key_bonus: 0.30
@@ -20,11 +21,18 @@ reward:
   goal_bonus: 1.00
   step_penalty: 0.001
 
+# model: (comentado para probar el RecurrentPPO)
+#   policy: CnnPolicy
+#   features_dim: 512
+#   pi_layers: [256, 256]
+#   vf_layers: [256, 256]
+
 model:
-  policy: CnnPolicy
-  features_dim: 512
-  pi_layers: [256, 256]
-  vf_layers: [256, 256]
+  policy: CnnLstmPolicy   # Para que el config sea descriptivo
+  features_dim: 256
+  pi_layers: [128, 128]
+  vf_layers: [128, 128]
+  lstm_hidden_size: 256   # Tama�o del estado oculto del LSTM
 
 ppo:
   learning_rate: 0.00025

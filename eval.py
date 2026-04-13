@@ -91,8 +91,9 @@ def resolve_model_path(run_dir: Path, checkpoint: int | None) -> Path:
     if checkpoint is None:
         model_path = run_dir / "ppo_fourlocked_final.pt"
     else:
-        model_path = run_dir / f"ppo_fourlocked_step{checkpoint}.pt"
-
+        # model_path = run_dir / f"ppo_fourlocked_step{checkpoint}.pt"
+        model_path = run_dir / f"ppo_partialobs_step{checkpoint}.pt"
+        
     if not model_path.exists():
         raise FileNotFoundError(f"No existe el modelo: {model_path}")
 
@@ -242,7 +243,8 @@ def main() -> None:
     goal_bonus = float(cfg.get("reward", "goal_bonus", default=1.0))
     step_penalty = float(cfg.get("reward", "step_penalty", default=0.001))
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
 
     video_dir = None
     if not args.no_video:
