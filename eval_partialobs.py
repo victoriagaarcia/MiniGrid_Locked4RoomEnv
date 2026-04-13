@@ -88,7 +88,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--device",
         type=str,
-        default="cpu",
+        default="cuda" if torch.cuda.is_available() else "cpu",
         choices=["cpu", "cuda", "auto"],
         help="Dispositivo para evaluación",
     )
