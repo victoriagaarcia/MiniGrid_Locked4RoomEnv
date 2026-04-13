@@ -1,0 +1,359 @@
+"""
+eval.py
+-------
+Evalúa un modelo RecurrentPPO entrenado con train_partialobs.py
+en FourLockedRoomEnv y opcionalmente graba vídeo.
+
+Uso
+---
+    python eval.py --run_dir runs/Apr07_23_34_33
+    python eval.py --run_dir runs/Apr07_23_34_33 --episodes 10
+    python eval.py --run_dir runs/Apr07_23_34_33 --checkpoint 500000
+    python eval.py --run_dir runs/Apr07_23_34_33 --no_video
+    python eval.py --run_dir runs/Apr07_23_34_33 --stochastic
+
+Requisitos
+----------
+    pip install stable-baselines3[extra] sb3-contrib shimmy gymnasium minigrid pygame pyyaml openpyxl
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+import gymnasium as gym
+import numpy as np
+import torch
+
+from sb3_contrib import RecurrentPPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
+
+from envs.four_locked_room_env import FourLockedRoomEnv
+from config import ExperimentConfig
+
+# Importamos exactamente los mismos wrappers/clases que se usaron al entrenar
+from train_partialobs import RGBPartialWrapper, ShapedRewardWrapper, PartialObsCNN
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Evalúa RecurrentPPO en FourLockedRoomEnv con observación parcial")
+    p.add_argument(
+        "--run_dir",
+        type=str,
+        required=True,
+        help="Carpeta del run, por ejemplo: runs/Apr07_23_34_33",
+    )
+    p.add_argument(
+        "--episodes",
+        type=int,
+        default=5,
+        help="Número de episodios de evaluación",
+    )
+    p.add_argument(
+        "--checkpoint",
+        type=int,
+        default=None,
+        help="Si se indica, carga runs/<run_dir>/ppo_partialobs_step<checkpoint>.pt",
+    )
+    p.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Fuerza predicción determinista",
+    )
+    p.add_argument(
+        "--stochastic",
+        action="store_true",
+        help="Fuerza predicción no determinista",
+    )
+    p.add_argument(
+        "--tile_size",
+        type=int,
+        default=32,
+        help="Tile size para render y vídeo",
+    )
+    p.add_argument(
+        "--video_prefix",
+        type=str,
+        default="ppo_partialobs_eval",
+        help="Prefijo del nombre de los vídeos",
+    )
+    p.add_argument(
+        "--no_video",
+        action="store_true",
+        help="Desactiva la grabación de vídeo",
+    )
+    p.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        choices=["cpu", "cuda", "auto"],
+        help="Dispositivo para evaluación",
+    )
+    return p.parse_args()
+
+
+def resolve_model_path(run_dir: Path, checkpoint: int | None) -> Path:
+    if checkpoint is None:
+        model_path = run_dir / "ppo_partialobs_final.pt"
+    else:
+        model_path = run_dir / f"ppo_partialobs_step{checkpoint}.pt"
+
+    if not model_path.exists():
+        raise FileNotFoundError(f"No existe el modelo: {model_path}")
+
+    return model_path
+
+
+def make_single_eval_env(
+    *,
+    size: int,
+    seed: int,
+    agent_view_size: int,
+    key_bonus: float,
+    door_bonus: float,
+    goal_bonus: float,
+    step_penalty: float,
+    tile_size: int,
+    record_video_folder: str | None = None,
+    video_prefix: str = "ppo_partialobs_eval",
+    max_videos: int | None = None,
+) -> gym.Env:
+    env = FourLockedRoomEnv(
+        size=size,
+        render_mode="rgb_array",
+        tile_size=tile_size,
+        agent_view_size=agent_view_size,
+    )
+
+    # Mismo reward shaping que en train_partialobs.py
+    env = ShapedRewardWrapper(env)
+    env.KEY_BONUS = key_bonus
+    env.DOOR_BONUS = door_bonus
+    env.GOAL_BONUS = goal_bonus
+    env.STEP_PENALTY = step_penalty
+
+    # Mismo wrapper de observación parcial que en train_partialobs.py
+    env = RGBPartialWrapper(env)
+    env = Monitor(env)
+
+    env.reset(seed=seed)
+    try:
+        env.action_space.seed(seed)
+    except Exception:
+        pass
+    try:
+        env.observation_space.seed(seed)
+    except Exception:
+        pass
+
+    if record_video_folder is not None:
+        if max_videos is None:
+            episode_trigger = lambda ep: True
+        else:
+            episode_trigger = lambda ep: ep < max_videos
+
+        env = gym.wrappers.RecordVideo(
+            env,
+            video_folder=record_video_folder,
+            episode_trigger=episode_trigger,
+            name_prefix=video_prefix,
+            fps=8,
+        )
+        print(f"[Video] Recording enabled -> {record_video_folder}")
+
+    return env
+
+
+def make_vec_eval_env(
+    *,
+    size: int,
+    seed: int,
+    agent_view_size: int,
+    key_bonus: float,
+    door_bonus: float,
+    goal_bonus: float,
+    step_penalty: float,
+    tile_size: int,
+    record_video_folder: str | None = None,
+    video_prefix: str = "ppo_partialobs_eval",
+    max_videos: int | None = None,
+):
+    def _init():
+        return make_single_eval_env(
+            size=size,
+            seed=seed,
+            agent_view_size=agent_view_size,
+            key_bonus=key_bonus,
+            door_bonus=door_bonus,
+            goal_bonus=goal_bonus,
+            step_penalty=step_penalty,
+            tile_size=tile_size,
+            record_video_folder=record_video_folder,
+            video_prefix=video_prefix,
+            max_videos=max_videos,
+        )
+
+    env = DummyVecEnv([_init])
+    env = VecTransposeImage(env)
+    return env
+
+
+def extract_terminal_info(info: dict[str, Any]) -> dict[str, Any]:
+    episode_info = info.get("episode", {})
+    return {
+        "return": float(episode_info.get("r", 0.0)),
+        "length": int(episode_info.get("l", 0)),
+        "is_success": bool(info.get("is_success", False)),
+        "got_key": bool(info.get("episode_got_key", False)),
+        "opened_door": bool(info.get("episode_opened_door", False)),
+    }
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.deterministic and args.stochastic:
+        raise ValueError("No puedes usar --deterministic y --stochastic a la vez")
+
+    deterministic = True
+    if args.stochastic:
+        deterministic = False
+    elif args.deterministic:
+        deterministic = True
+
+    run_dir = Path(args.run_dir)
+    if not run_dir.exists():
+        raise FileNotFoundError(f"No existe la carpeta del run: {run_dir}")
+
+    cfg_path = run_dir / "config_used.yaml"
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"No existe config_used.yaml en: {cfg_path}")
+
+    cfg = ExperimentConfig.from_yaml(cfg_path)
+    model_path = resolve_model_path(run_dir, args.checkpoint)
+
+    size = int(cfg.get("env", "size", default=19))
+    agent_view_size = int(cfg.get("env", "agent_view_size", default=7))
+    seed = int(cfg.get("experiment", "seed", default=42))
+
+    key_bonus = float(cfg.get("reward", "key_bonus", default=0.30))
+    door_bonus = float(cfg.get("reward", "door_bonus", default=0.50))
+    goal_bonus = float(cfg.get("reward", "goal_bonus", default=1.0))
+    step_penalty = float(cfg.get("reward", "step_penalty", default=0.001))
+
+    if args.device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif args.device == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("Has pedido --device cuda pero CUDA no está disponible")
+        device = "cuda"
+    else:
+        device = "cpu"
+
+    video_dir = None
+    if not args.no_video:
+        video_dir = str(run_dir / "videos_eval")
+        Path(video_dir).mkdir(parents=True, exist_ok=True)
+
+    print("=" * 80)
+    print(f"[eval] Run dir         : {run_dir}")
+    print(f"[eval] Config          : {cfg_path}")
+    print(f"[eval] Model           : {model_path}")
+    print(f"[eval] Device          : {device}")
+    print(f"[eval] size            : {size}")
+    print(f"[eval] agent_view_size : {agent_view_size}")
+    print(f"[eval] episodes        : {args.episodes}")
+    print(f"[eval] deterministic   : {deterministic}")
+    print("=" * 80)
+
+    vec_env = make_vec_eval_env(
+        size=size,
+        seed=seed + 20_000,
+        agent_view_size=agent_view_size,
+        key_bonus=key_bonus,
+        door_bonus=door_bonus,
+        goal_bonus=goal_bonus,
+        step_penalty=step_penalty,
+        tile_size=args.tile_size,
+        record_video_folder=video_dir,
+        video_prefix=args.video_prefix,
+        max_videos=args.episodes,
+    )
+
+    model = RecurrentPPO.load(
+        str(model_path),
+        env=vec_env,
+        device=device,
+    )
+
+    returns = []
+    lengths = []
+    successes = []
+    key_hits = []
+    door_hits = []
+
+    try:
+        obs = vec_env.reset()
+        lstm_states = None
+        episode_starts = np.ones((vec_env.num_envs,), dtype=bool)
+
+        for ep in range(args.episodes):
+            done = False
+            print(f"\n[Episode {ep + 1}] Starting...")
+
+            while not done:
+                action, lstm_states = model.predict(
+                    obs,
+                    state=lstm_states,
+                    episode_start=episode_starts,
+                    deterministic=deterministic,
+                )
+
+                obs, rewards, dones, infos = vec_env.step(action)
+                done = bool(dones[0])
+
+                # Esto es clave en RecurrentPPO para resetear el estado LSTM
+                episode_starts = dones
+
+                if done:
+                    final = extract_terminal_info(infos[0])
+
+                    returns.append(final["return"])
+                    lengths.append(final["length"])
+                    successes.append(int(final["is_success"]))
+                    key_hits.append(int(final["got_key"]))
+                    door_hits.append(int(final["opened_door"]))
+
+                    print(
+                        f"Episode {ep + 1}: "
+                        f"return={final['return']:.3f}, "
+                        f"len={final['length']}, "
+                        f"success={final['is_success']}, "
+                        f"key={final['got_key']}, "
+                        f"door={final['opened_door']}"
+                    )
+
+                    # Tras terminar episodio, reseteamos el env y el flag de inicio
+                    obs = vec_env.reset()
+                    episode_starts = np.ones((vec_env.num_envs,), dtype=bool)
+                    lstm_states = None
+
+        print("\n" + "-" * 60)
+        print(f"Mean return:  {np.mean(returns):.3f} ± {np.std(returns):.3f}")
+        print(f"Mean length:  {np.mean(lengths):.2f} ± {np.std(lengths):.2f}")
+        print(f"Success rate: {np.mean(successes):.3f}")
+        print(f"Key rate:     {np.mean(key_hits):.3f}")
+        print(f"Door rate:    {np.mean(door_hits):.3f}")
+
+    finally:
+        vec_env.close()
+
+    if video_dir is not None:
+        print(f"[eval] Videos saved in: {video_dir}")
+
+
+if __name__ == "__main__":
+    main()
