@@ -105,8 +105,10 @@ class ShapedRewardWrapper(gym.Wrapper):
     Señales intermedias de reward para guiar el aprendizaje.
 
     Bonus:
+      - Entrar en la room de la llave  -> +KEY_ROOM_BONUS
       - Recoger la llave roja  -> +KEY_BONUS
       - Abrir la puerta roja   -> +DOOR_BONUS
+      - Entrar en la locked room abierta   -> +LOCKED_ROOM_BONUS
       - Llegar al goal         -> +GOAL_BONUS
       - Cada step sin terminar -> -STEP_PENALTY
 
@@ -115,25 +117,51 @@ class ShapedRewardWrapper(gym.Wrapper):
       episode_got_key, episode_opened_door
     """
 
+    KEY_ROOM_BONUS = 0.10
     KEY_BONUS   = 0.30
     DOOR_BONUS  = 0.50
+    LOCKED_ROOM_BONUS = 0.10
     GOAL_BONUS  = 1.0
     STEP_PENALTY = 0.001
 
     def __init__(self, env: gym.Env):
         super().__init__(env)
+        self._entered_key_room = False
         self._key_picked  = False
         self._door_opened = False
+        self._entered_locked_room = False
 
     def reset(self, **kwargs):
+        self._entered_key_room = False
         self._key_picked  = False
         self._door_opened = False
+        self._entered_locked_room = False
         return self.env.reset(**kwargs)
 
+    @staticmethod
+    def _agent_in_room(env_u, room) -> bool:
+        """
+        Comprueba si el agente está dentro del área interior de una habitación
+        (excluyendo paredes).
+        """
+        ax, ay = env_u.agent_pos
+        rx, ry = room.top
+        rw, rh = room.size
+
+        return (rx + 1 <= ax < rx + rw - 1) and (ry + 1 <= ay < ry + rh - 1)
+    
     def step(self, action):
         obs, _, terminated, truncated, info = self.env.step(action)
 
         shaped_reward = 0.0
+        env_u = self.env.unwrapped
+        
+        entered_key_room_now = False
+        if not self._entered_key_room and hasattr(env_u, "key_room"):
+            if self._agent_in_room(env_u, env_u.key_room):
+                shaped_reward += self.KEY_ROOM_BONUS
+                self._entered_key_room = True
+                entered_key_room_now = True
 
         got_key_now = False
         if not self._key_picked:
@@ -154,6 +182,13 @@ class ShapedRewardWrapper(gym.Wrapper):
                         self._door_opened   = True
                         opened_door_now     = True
                         break
+        
+        entered_locked_room_now = False
+        if self._door_opened and not self._entered_locked_room and hasattr(env_u, "locked_room"):
+            if self._agent_in_room(env_u, env_u.locked_room):
+                shaped_reward += self.LOCKED_ROOM_BONUS
+                self._entered_locked_room = True
+                entered_locked_room_now = True
 
         is_success = bool(terminated and self._door_opened)
 
@@ -163,11 +198,16 @@ class ShapedRewardWrapper(gym.Wrapper):
             shaped_reward -= self.STEP_PENALTY
 
         info["shaped_reward"]      = float(shaped_reward)
-        info["bonus_key"]          = got_key_now
-        info["bonus_door"]         = opened_door_now
-        info["is_success"]         = is_success
-        info["episode_got_key"]    = self._key_picked
+        info["bonus_key_room"] = entered_key_room_now
+        info["bonus_key"] = got_key_now
+        info["bonus_door"] = opened_door_now
+        info["bonus_locked_room"] = entered_locked_room_now
+
+        info["is_success"] = is_success
+        info["episode_entered_key_room"] = self._entered_key_room
+        info["episode_got_key"] = self._key_picked
         info["episode_opened_door"] = self._door_opened
+        info["episode_entered_locked_room"] = self._entered_locked_room
 
         return obs, shaped_reward, terminated, truncated, info
 
@@ -280,12 +320,14 @@ class InfoLoggerCallback(BaseCallback):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def make_env_fn(
-    size: int       = 19,
-    seed: int       = 0,
-    agent_view_size: int = 7,    # Tamaño del FOV en tiles (MiniGrid default = 7)
-    key_bonus:   float  = 0.30,
-    door_bonus:  float  = 0.50,
-    goal_bonus:  float  = 1.0,
+    size: int = 19,
+    seed: int = 0,
+    agent_view_size: int = 7,
+    key_room_bonus: float = 0.10,
+    key_bonus: float = 0.30,
+    door_bonus: float = 0.50,
+    locked_room_bonus: float = 0.10,
+    goal_bonus: float = 1.0,
     step_penalty: float = 0.001,
 ) -> Callable[[], gym.Env]:
     """
@@ -306,10 +348,12 @@ def make_env_fn(
         # Aquí lo omitimos completamente. El agente solo verá su FOV local.
 
         env = ShapedRewardWrapper(env)
-        env.KEY_BONUS    = key_bonus
-        env.DOOR_BONUS   = door_bonus
-        env.GOAL_BONUS   = goal_bonus
-        env.STEP_PENALTY = step_penalty
+        env.KEY_ROOM_BONUS    = key_room_bonus
+        env.KEY_BONUS         = key_bonus
+        env.DOOR_BONUS        = door_bonus
+        env.LOCKED_ROOM_BONUS = locked_room_bonus
+        env.GOAL_BONUS        = goal_bonus
+        env.STEP_PENALTY      = step_penalty
 
         # Usa el wrapper parcial (sin FullyObsWrapper)
         env = RGBPartialWrapper(env)
@@ -367,11 +411,13 @@ def train(args: argparse.Namespace) -> None:
     # Con size=19, un FOV de 7 cubre aprox. 1/3 del mapa en cada dimensión.
     agent_view_size  = int(cfg.get("env", "agent_view_size",  default=7))
 
-    key_bonus    = float(cfg.get("reward", "key_bonus",    default=0.30))
-    door_bonus   = float(cfg.get("reward", "door_bonus",   default=0.50))
-    goal_bonus   = float(cfg.get("reward", "goal_bonus",   default=1.0))
-    step_penalty = float(cfg.get("reward", "step_penalty", default=0.001))
-
+    key_room_bonus    = float(cfg.get("reward", "key_room_bonus",    default=0.10))
+    key_bonus         = float(cfg.get("reward", "key_bonus",         default=0.30))
+    door_bonus        = float(cfg.get("reward", "door_bonus",        default=0.50))
+    locked_room_bonus = float(cfg.get("reward", "locked_room_bonus", default=0.10))
+    goal_bonus        = float(cfg.get("reward", "goal_bonus",        default=1.0))
+    step_penalty      = float(cfg.get("reward", "step_penalty",      default=0.001))
+    
     # ── Seeds globales ───────────────────────────────────────────────────────
     set_global_seeds(seed)
 
@@ -413,8 +459,10 @@ def train(args: argparse.Namespace) -> None:
                 size=size,
                 seed=seed + i,
                 agent_view_size=agent_view_size,
+                key_room_bonus=key_room_bonus,
                 key_bonus=key_bonus,
                 door_bonus=door_bonus,
+                locked_room_bonus=locked_room_bonus,
                 goal_bonus=goal_bonus,
                 step_penalty=step_penalty,
             )
@@ -432,8 +480,10 @@ def train(args: argparse.Namespace) -> None:
                     size=size,
                     seed=seed + 10_000,
                     agent_view_size=agent_view_size,
+                    key_room_bonus=key_room_bonus,
                     key_bonus=key_bonus,
                     door_bonus=door_bonus,
+                    locked_room_bonus=locked_room_bonus,
                     goal_bonus=goal_bonus,
                     step_penalty=step_penalty,
                 )
