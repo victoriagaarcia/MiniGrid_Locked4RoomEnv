@@ -1,5 +1,5 @@
 experiment:
-  name: ppo_partialobs_smalllstm
+  name: ppo_partialobs_roomshaping
   seed: 42
   total_timesteps: 20000000
   checkpoint_every: 500000
