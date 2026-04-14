@@ -1,5 +1,5 @@
 experiment:
-  name: ppo_partialobs_fov9
+  name: ppo_partialobs_smalllstm
   seed: 42
   total_timesteps: 20000000
   checkpoint_every: 500000
@@ -13,7 +13,7 @@ env:
   n_envs: 8
   render_mode: rgb_array
   # frame_stack: 4
-  agent_view_size: 9      # Tamaño del FOV en tiles (7 = default MiniGrid)
+  agent_view_size: 7      # Tamaño del FOV en tiles (7 = default MiniGrid)
 
 reward:
   key_bonus: 0.30
@@ -32,7 +32,7 @@ model:
   features_dim: 512
   pi_layers: [128, 128]
   vf_layers: [128, 128]
-  lstm_hidden_size: 256   # Tama�o del estado oculto del LSTM
+  lstm_hidden_size: 128   # Tama�o del estado oculto del LSTM
 
 ppo:
   learning_rate: 0.0001
