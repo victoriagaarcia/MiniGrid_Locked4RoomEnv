@@ -71,7 +71,20 @@ def main() -> None:
 
     # 8) Obtener observación parcial actualizada
     #    Hacemos un "fake refresh" con render del wrapper
-    partial_obs = wrapped_env.observation(wrapped_env.gen_obs())
+    # Entorno base real
+    wrapped_base = wrapped_env.unwrapped    
+
+    # Wrapper intermedio RGB    
+    rgb_wrapper = wrapped_env.env   
+
+    # 1) obs parcial simb�lica del entorno base 
+    raw_obs = wrapped_base.gen_obs()    
+
+    # 2) convertirla a dict con imagen RGB parcial  
+    rgb_obs = rgb_wrapper.observation(raw_obs)  
+
+    # 3) extraer solo la imagen 
+    partial_obs = wrapped_env.observation(rgb_obs)  
 
     print("Render completo:", full_render.shape)
     print("Observación parcial:", partial_obs.shape)
