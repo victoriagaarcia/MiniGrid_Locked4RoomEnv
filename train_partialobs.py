@@ -47,7 +47,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
 
 # Solo necesitamos RGBImgObsWrapper e ImgObsWrapper; NO FullyObsWrapper
-from minigrid.wrappers import RGBImgObsWrapper, ImgObsWrapper
+from minigrid.wrappers import RGBImgPartialObsWrapper, ImgObsWrapper
 
 from envs.four_locked_room_env import FourLockedRoomEnv
 from config import ExperimentConfig
@@ -85,7 +85,8 @@ class RGBPartialWrapper(gym.ObservationWrapper):
     """
     def __init__(self, env: gym.Env):
         # RGBImgObsWrapper renderiza la vista parcial en píxeles RGB
-        env = RGBImgObsWrapper(env)
+        # env = RGBImgObsWrapper(env)
+        env = RGBImgPartialObsWrapper(env)
         # ImgObsWrapper extrae solo el array 'image' del dict de obs
         env = ImgObsWrapper(env)
         super().__init__(env)
