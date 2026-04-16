@@ -77,7 +77,7 @@ def main() -> None:
     # Wrapper intermedio RGB    
     rgb_wrapper = wrapped_env.env   
 
-    # 1) obs parcial simb�lica del entorno base 
+    # 1) obs parcial simbolica del entorno base 
     raw_obs = wrapped_base.gen_obs()    
 
     # 2) convertirla a dict con imagen RGB parcial  
