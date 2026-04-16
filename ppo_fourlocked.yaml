@@ -1,5 +1,5 @@
 experiment:
-  name: ppo_partialobs_roomshaping
+  name: ppo_fullobs_basereward
   seed: 42
   total_timesteps: 20000000
   checkpoint_every: 500000
@@ -23,29 +23,29 @@ reward:
   goal_bonus: 1.00
   step_penalty: 0.001
 
-# model: (comentado para probar el RecurrentPPO)
-#   policy: CnnPolicy
-#   features_dim: 512
-#   pi_layers: [256, 256]
-#   vf_layers: [256, 256]
-
 model:
-  policy: CnnLstmPolicy   # Para que el config sea descriptivo
+  policy: CnnPolicy
   features_dim: 512
-  pi_layers: [128, 128]
-  vf_layers: [128, 128]
-  lstm_hidden_size: 128   # Tama�o del estado oculto del LSTM
+  pi_layers: [256, 256]
+  vf_layers: [256, 256]
+
+# model:
+#   policy: CnnLstmPolicy   # Para que el config sea descriptivo
+#   features_dim: 512
+#   pi_layers: [128, 128]
+#   vf_layers: [128, 128]
+#   lstm_hidden_size: 128   # Tama�o del estado oculto del LSTM
 
 ppo:
-  learning_rate: 0.0001
-  n_steps: 512
-  batch_size: 128
-  n_epochs: 3
+  learning_rate: 0.00025
+  n_steps: 1024
+  batch_size: 256
+  n_epochs: 4
   gamma: 0.99
   gae_lambda: 0.95
-  clip_range: 0.1
-  ent_coef: 0.01
-  vf_coef: 1.0
+  clip_range: 0.2
+  ent_coef: 0.05
+  vf_coef: 0.5
   max_grad_norm: 0.5
 
 logging:
