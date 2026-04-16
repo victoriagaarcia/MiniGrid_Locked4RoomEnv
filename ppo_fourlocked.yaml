@@ -1,10 +1,10 @@
 experiment:
-  name: ppo_fullobs_basereward
+  name: ppo_partialobs_basereward
   seed: 42
-  total_timesteps: 20000000
+  total_timesteps: 50000000
   checkpoint_every: 500000
   eval: true
-  n_eval_episodes: 20
+  n_eval_episodes: 10
   eval_freq: 200000
 
 env:
@@ -23,18 +23,18 @@ reward:
   goal_bonus: 1.00
   step_penalty: 0.001
 
-model:
-  policy: CnnPolicy
-  features_dim: 512
-  pi_layers: [256, 256]
-  vf_layers: [256, 256]
-
 # model:
-#   policy: CnnLstmPolicy   # Para que el config sea descriptivo
-#   features_dim: 512
-#   pi_layers: [128, 128]
-#   vf_layers: [128, 128]
-#   lstm_hidden_size: 128   # Tama�o del estado oculto del LSTM
+  # policy: CnnPolicy
+  # features_dim: 512
+  # pi_layers: [256, 256]
+  # vf_layers: [256, 256]
+
+  model:
+   policy: CnnLstmPolicy   # Para que el config sea descriptivo
+   features_dim: 512
+   pi_layers: [128, 128]
+   vf_layers: [128, 128]
+   lstm_hidden_size: 256   # Tamaño del estado oculto del LSTM
 
 ppo:
   learning_rate: 0.00025

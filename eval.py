@@ -91,8 +91,8 @@ def resolve_model_path(run_dir: Path, checkpoint: int | None) -> Path:
     if checkpoint is None:
         model_path = run_dir / "ppo_fourlocked_final.pt"
     else:
-        # model_path = run_dir / f"ppo_fourlocked_step{checkpoint}.pt"
-        model_path = run_dir / f"ppo_partialobs_step{checkpoint}.pt"
+        model_path = run_dir / f"ppo_fourlocked_step{checkpoint}.pt"
+        # model_path = run_dir / f"ppo_partialobs_step{checkpoint}.pt"
         
     if not model_path.exists():
         raise FileNotFoundError(f"No existe el modelo: {model_path}")

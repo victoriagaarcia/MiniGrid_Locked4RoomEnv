@@ -157,12 +157,12 @@ class ShapedRewardWrapper(gym.Wrapper):
         shaped_reward = 0.0
         env_u = self.env.unwrapped
         
-        entered_key_room_now = False
-        if not self._entered_key_room and hasattr(env_u, "key_room"):
-            if self._agent_in_room(env_u, env_u.key_room):
-                shaped_reward += self.KEY_ROOM_BONUS
-                self._entered_key_room = True
-                entered_key_room_now = True
+        # entered_key_room_now = False
+        # if not self._entered_key_room and hasattr(env_u, "key_room"):
+            # if self._agent_in_room(env_u, env_u.key_room):
+                # shaped_reward += self.KEY_ROOM_BONUS
+                # self._entered_key_room = True
+                # entered_key_room_now = True
 
         got_key_now = False
         if not self._key_picked:
@@ -184,12 +184,12 @@ class ShapedRewardWrapper(gym.Wrapper):
                         opened_door_now     = True
                         break
         
-        entered_locked_room_now = False
-        if self._door_opened and not self._entered_locked_room and hasattr(env_u, "locked_room"):
-            if self._agent_in_room(env_u, env_u.locked_room):
-                shaped_reward += self.LOCKED_ROOM_BONUS
-                self._entered_locked_room = True
-                entered_locked_room_now = True
+        # entered_locked_room_now = False
+        # if self._door_opened and not self._entered_locked_room and hasattr(env_u, "locked_room"):
+            # if self._agent_in_room(env_u, env_u.locked_room):
+                # shaped_reward += self.LOCKED_ROOM_BONUS
+                # self._entered_locked_room = True
+                # entered_locked_room_now = True
 
         is_success = bool(terminated and self._door_opened)
 
@@ -199,10 +199,10 @@ class ShapedRewardWrapper(gym.Wrapper):
             shaped_reward -= self.STEP_PENALTY
 
         info["shaped_reward"]      = float(shaped_reward)
-        info["bonus_key_room"] = entered_key_room_now
+        # info["bonus_key_room"] = entered_key_room_now
         info["bonus_key"] = got_key_now
         info["bonus_door"] = opened_door_now
-        info["bonus_locked_room"] = entered_locked_room_now
+        # info["bonus_locked_room"] = entered_locked_room_now
 
         info["is_success"] = is_success
         info["episode_entered_key_room"] = self._entered_key_room
