@@ -9,7 +9,7 @@ experiment:
 
 env:
   size: 19
-  full_obs: false
+  full_info: false
   n_envs: 8
   render_mode: rgb_array
   # frame_stack: 4
