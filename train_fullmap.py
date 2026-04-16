@@ -259,7 +259,7 @@ class InfoLoggerCallback(BaseCallback):
 def make_env_fn(
     size: int = 19,
     seed: int = 0,
-    full_obs: bool = True,
+    full_info: bool = False,
     key_bonus: float = 0.30,
     door_bonus: float = 0.50,
     goal_bonus: float = 1.0,
@@ -272,7 +272,7 @@ def make_env_fn(
     def _init() -> gym.Env:
         env = FourLockedRoomEnv(size=size, render_mode="rgb_array")
 
-        if full_obs:
+        if full_info:
             env = FullyObsWrapper(env)
 
         env = ShapedRewardWrapper(env)
@@ -332,7 +332,7 @@ def train(args: argparse.Namespace) -> None:
     eval_freq = int(cfg.get("experiment", "eval_freq", default=100_000))
 
     size = int(cfg.get("env", "size", default=19))
-    full_obs = bool(cfg.get("env", "full_obs", default=True))
+    full_info = bool(cfg.get("env", "full_info", default=False))
     n_envs = int(cfg.get("env", "n_envs", default=8))
 
     key_bonus = float(cfg.get("reward", "key_bonus", default=0.30))
@@ -379,7 +379,7 @@ def train(args: argparse.Namespace) -> None:
             make_env_fn(
                 size=size,
                 seed=seed + i,
-                full_obs=full_obs,
+                full_info=full_info,
                 key_bonus=key_bonus,
                 door_bonus=door_bonus,
                 goal_bonus=goal_bonus,
@@ -398,7 +398,7 @@ def train(args: argparse.Namespace) -> None:
                 make_env_fn(
                     size=size,
                     seed=seed + 10_000,
-                    full_obs=full_obs,
+                    full_info=full_info,
                     key_bonus=key_bonus,
                     door_bonus=door_bonus,
                     goal_bonus=goal_bonus,
@@ -454,7 +454,7 @@ def train(args: argparse.Namespace) -> None:
             "experiment_name": experiment_name,
             "seed": seed,
             "size": size,
-            "full_obs": full_obs,
+            "full_info": full_info,
             "n_envs": n_envs,
             "total_timesteps": total_timesteps,
             "learning_rate": cfg.get("ppo", "learning_rate"),
