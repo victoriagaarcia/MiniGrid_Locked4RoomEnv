@@ -40,6 +40,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
 from minigrid.wrappers import RGBImgObsWrapper, ImgObsWrapper, FullyObsWrapper
 
 from envs.four_locked_room_env import FourLockedRoomEnv
+from envs.six_locked_room_env import SixLockedRoomEnv
 from config import ExperimentConfig
 from utils.run_logger import append_run, update_run
 
@@ -264,13 +265,17 @@ def make_env_fn(
     door_bonus: float = 0.50,
     goal_bonus: float = 1.0,
     step_penalty: float = 0.001,
+    n_rooms: int = 4,
 ) -> Callable[[], gym.Env]:
     """
     Devuelve una función que crea y envuelve el entorno.
     Necesario para SubprocVecEnv.
     """
     def _init() -> gym.Env:
-        env = FourLockedRoomEnv(size=size, render_mode="rgb_array")
+        if n_rooms == 6:
+            env = SixLockedRoomEnv(size=size, render_mode="rgb_array")
+        else: 
+            env = FourLockedRoomEnv(size=size, render_mode="rgb_array")
 
         if full_info:
             env = FullyObsWrapper(env)
@@ -330,6 +335,7 @@ def train(args: argparse.Namespace) -> None:
     use_eval = bool(cfg.get("experiment", "eval", default=True))
     n_eval_episodes = int(cfg.get("experiment", "n_eval_episodes", default=20))
     eval_freq = int(cfg.get("experiment", "eval_freq", default=100_000))
+    n_rooms = int(cfg.get("env", "n_rooms", default=4))
 
     size = int(cfg.get("env", "size", default=19))
     full_info = bool(cfg.get("env", "full_info", default=False))
@@ -384,6 +390,7 @@ def train(args: argparse.Namespace) -> None:
                 door_bonus=door_bonus,
                 goal_bonus=goal_bonus,
                 step_penalty=step_penalty,
+                n_rooms=n_rooms,
             )
             for i in range(n_envs)
         ]
@@ -403,6 +410,7 @@ def train(args: argparse.Namespace) -> None:
                     door_bonus=door_bonus,
                     goal_bonus=goal_bonus,
                     step_penalty=step_penalty,
+                    n_rooms=n_rooms,
                 )
             ]
         )

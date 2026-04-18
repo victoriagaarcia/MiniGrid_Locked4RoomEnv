@@ -1,7 +1,7 @@
 experiment:
   name: ppo_partialobs_basereward
   seed: 42
-  total_timesteps: 50000000
+  total_timesteps: 20000000
   checkpoint_every: 500000
   eval: true
   n_eval_episodes: 10
@@ -13,7 +13,8 @@ env:
   n_envs: 8
   render_mode: rgb_array
   # frame_stack: 4
-  agent_view_size: 7      # Tamaño del FOV en tiles (7 = default MiniGrid)
+  agent_view_size: 5      # Tamaño del FOV en tiles (7 = default MiniGrid)
+  n_rooms: 6
 
 reward:
   key_room_bonus: 0.10
