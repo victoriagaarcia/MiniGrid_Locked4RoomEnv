@@ -281,7 +281,7 @@ def main() -> None:
     vec_env = make_vec_eval_env(
         size=size,
         seed=seed + 20_000,
-        full_obs=full_info,
+        full_info=full_info,
         key_bonus=key_bonus,
         door_bonus=door_bonus,
         goal_bonus=goal_bonus,
