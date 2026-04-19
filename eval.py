@@ -33,6 +33,7 @@ from stable_baselines3.common.monitor import Monitor
 from minigrid.wrappers import FullyObsWrapper
 
 from envs.four_locked_room_env import FourLockedRoomEnv
+from envs.six_locked_room_env import SixLockedRoomEnv
 from config import ExperimentConfig
 from train import RGBFlatWrapper, ShapedRewardWrapper
 
@@ -84,6 +85,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Desactiva la grabación de vídeo",
     )
+    p.add_argument(
+        "--n_rooms",
+        type=int,
+        default=4,
+        help="Número de habitaciones (4 o 6)",
+    )
     return p.parse_args()
 
 
@@ -104,7 +111,7 @@ def make_single_eval_env(
     *,
     size: int,
     seed: int,
-    full_obs: bool,
+    full_info: bool,
     key_bonus: float,
     door_bonus: float,
     goal_bonus: float,
@@ -113,14 +120,22 @@ def make_single_eval_env(
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_eval",
     max_videos: int | None = None,
+    n_rooms: int = 4,
 ) -> gym.Env:
-    env = FourLockedRoomEnv(
-        size=size,
-        render_mode="rgb_array",
-        tile_size=tile_size,
-    )
+    if n_rooms == 6:
+        env = SixLockedRoomEnv(
+            size=size,
+            render_mode="rgb_array",
+            tile_size=tile_size,
+        )
+    else:
+        env = FourLockedRoomEnv(
+            size=size,
+            render_mode="rgb_array",
+            tile_size=tile_size,
+    )   
 
-    if full_obs:
+    if full_info:
         env = FullyObsWrapper(env)
 
     env = ShapedRewardWrapper(env)
@@ -164,7 +179,7 @@ def make_vec_eval_env(
     *,
     size: int,
     seed: int,
-    full_obs: bool,
+    full_info: bool,
     key_bonus: float,
     door_bonus: float,
     goal_bonus: float,
@@ -174,12 +189,13 @@ def make_vec_eval_env(
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_eval",
     max_videos: int | None = None,
+    n_rooms: int = 4,
 ):
     def _init():
         return make_single_eval_env(
             size=size,
             seed=seed,
-            full_obs=full_obs,
+            full_info=full_info,
             key_bonus=key_bonus,
             door_bonus=door_bonus,
             goal_bonus=goal_bonus,
@@ -188,6 +204,7 @@ def make_vec_eval_env(
             record_video_folder=record_video_folder,
             video_prefix=video_prefix,
             max_videos=max_videos,
+            n_rooms=n_rooms,
         )
 
     env = DummyVecEnv([_init])
@@ -234,7 +251,7 @@ def main() -> None:
     model_path = resolve_model_path(run_dir, args.checkpoint)
 
     size = int(cfg.get("env", "size", default=19))
-    full_obs = bool(cfg.get("env", "full_obs", default=True))
+    full_info = bool(cfg.get("env", "full_info", default=False))
     seed = int(cfg.get("experiment", "seed", default=42))
     frame_stack = int(cfg.get("env", "frame_stack", default=1))
 
@@ -256,7 +273,7 @@ def main() -> None:
     print(f"[eval] Config: {cfg_path}")
     print(f"[eval] Model: {model_path}")
     print(f"[eval] Device: {device}")
-    print(f"[eval] full_obs: {full_obs}")
+    print(f"[eval] full_obs: {full_info}")
     print(f"[eval] episodes: {args.episodes}")
     print(f"[eval] deterministic: {deterministic}")
     print("=" * 80)
@@ -264,7 +281,7 @@ def main() -> None:
     vec_env = make_vec_eval_env(
         size=size,
         seed=seed + 20_000,
-        full_obs=full_obs,
+        full_obs=full_info,
         key_bonus=key_bonus,
         door_bonus=door_bonus,
         goal_bonus=goal_bonus,
@@ -274,6 +291,7 @@ def main() -> None:
         record_video_folder=video_dir,
         video_prefix=args.video_prefix,
         max_videos=args.episodes,
+        n_rooms=args.n_rooms,
     )
 
     model = PPO.load(
