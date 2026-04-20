@@ -50,6 +50,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecTransposeImage
 from minigrid.wrappers import RGBImgPartialObsWrapper, ImgObsWrapper
 
 from envs.four_locked_room_env import FourLockedRoomEnv
+from envs.six_locked_room_env import SixLockedRoomEnv
 from config import ExperimentConfig
 from utils.run_logger import append_run, update_run
 
@@ -330,6 +331,7 @@ def make_env_fn(
     locked_room_bonus: float = 0.10,
     goal_bonus: float = 1.0,
     step_penalty: float = 0.001,
+    n_rooms: int = 4,
 ) -> Callable[[], gym.Env]:
     """
     Devuelve una función que crea y envuelve el entorno con observación PARCIAL.
@@ -338,11 +340,18 @@ def make_env_fn(
     de este script). El parámetro agent_view_size controla el tamaño del FOV.
     """
     def _init() -> gym.Env:
-        env = FourLockedRoomEnv(
-            size=size,
-            render_mode="rgb_array",
-            agent_view_size=agent_view_size,   # Controla el FOV (7 = default de MiniGrid)
-        )
+        if n_rooms == 6: 
+            env = SixLockedRoomEnv(
+                size=size,
+                render_mode="rgb_array",
+                agent_view_size=agent_view_size,   # Controla el FOV (7 = default de MiniGrid)
+            )
+        else:
+            env = FourLockedRoomEnv(
+                size=size,
+                render_mode="rgb_array",
+                agent_view_size=agent_view_size,   # Controla el FOV (7 = default de MiniGrid)
+            )
 
         # ── SIN FullyObsWrapper ────────────────────────────────────────────
         # En train_fullmap.py había: if full_obs: env = FullyObsWrapper(env)
@@ -408,6 +417,7 @@ def train(args: argparse.Namespace) -> None:
 
     size             = int(cfg.get("env", "size",             default=19))
     n_envs           = int(cfg.get("env", "n_envs",           default=8))
+    n_rooms =      int(cfg.get("env", "n_rooms", default=4))
     # agent_view_size controla el FOV. El default de MiniGrid es 7.
     # Con size=19, un FOV de 7 cubre aprox. 1/3 del mapa en cada dimensión.
     agent_view_size  = int(cfg.get("env", "agent_view_size",  default=7))
@@ -466,6 +476,7 @@ def train(args: argparse.Namespace) -> None:
                 locked_room_bonus=locked_room_bonus,
                 goal_bonus=goal_bonus,
                 step_penalty=step_penalty,
+                n_rooms=n_rooms,
             )
             for i in range(n_envs)
         ]
@@ -487,6 +498,7 @@ def train(args: argparse.Namespace) -> None:
                     locked_room_bonus=locked_room_bonus,
                     goal_bonus=goal_bonus,
                     step_penalty=step_penalty,
+                    n_rooms=n_rooms,
                 )
             ]
         )
