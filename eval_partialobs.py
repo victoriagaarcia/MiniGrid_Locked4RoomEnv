@@ -32,6 +32,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage
 
 from envs.four_locked_room_env import FourLockedRoomEnv
+from envs.six_locked_room_env import SixLockedRoomEnv
 from config import ExperimentConfig
 
 # Importamos exactamente los mismos wrappers/clases que se usaron al entrenar
@@ -92,6 +93,12 @@ def parse_args() -> argparse.Namespace:
         choices=["cpu", "cuda", "auto"],
         help="Dispositivo para evaluación",
     )
+    p.add_argument(
+        "--n_rooms",
+        type=int,
+        default=4,
+        help="Número de habitaciones (4 o 6) - debe coincidir con el entrenamiento",
+    )
     return p.parse_args()
 
 
@@ -120,13 +127,22 @@ def make_single_eval_env(
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_partialobs_eval",
     max_videos: int | None = None,
+    n_rooms: int = 4,
 ) -> gym.Env:
-    env = FourLockedRoomEnv(
-        size=size,
-        render_mode="rgb_array",
-        tile_size=tile_size,
-        agent_view_size=agent_view_size,
-    )
+    if n_rooms == 6:
+        env = SixLockedRoomEnv(
+            size=size,
+            render_mode="rgb_array",
+            tile_size=tile_size,
+            agent_view_size=agent_view_size,
+        )
+    else:
+        env = FourLockedRoomEnv(
+            size=size,
+            render_mode="rgb_array",
+            tile_size=tile_size,
+            agent_view_size=agent_view_size,
+        )
 
     # Mismo reward shaping que en train_partialobs.py
     env = ShapedRewardWrapper(env)
@@ -180,6 +196,7 @@ def make_vec_eval_env(
     record_video_folder: str | None = None,
     video_prefix: str = "ppo_partialobs_eval",
     max_videos: int | None = None,
+    n_rooms: int = 4,
 ):
     def _init():
         return make_single_eval_env(
@@ -194,6 +211,7 @@ def make_vec_eval_env(
             record_video_folder=record_video_folder,
             video_prefix=video_prefix,
             max_videos=max_videos,
+            n_rooms=n_rooms,
         )
 
     env = DummyVecEnv([_init])
@@ -281,6 +299,7 @@ def main() -> None:
         record_video_folder=video_dir,
         video_prefix=args.video_prefix,
         max_videos=args.episodes,
+        n_rooms=args.n_rooms,
     )
 
     model = RecurrentPPO.load(
